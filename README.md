@@ -78,3 +78,8 @@ This will allow to start loading the image 100px before the right side of the sc
 ```javascript
  <img image-lazy-src="{{item.thumbnail}}" image-lazy-distance-from-right-to-load="100">
 ```
+
+You can specify CSS class to be added to the element after the image has been loaded. For instance this class can represent CSS animation fade the image into view:
+```javascript
+ <img image-lazy-src="{{item.thumbnail}}" image-lazy-loaded-class="fadeIn">
+```

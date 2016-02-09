@@ -27,14 +27,15 @@ angular.module('ionicLazyLoad')
         };
 }])
 
-.directive('imageLazySrc', ['$document', '$timeout', '$ionicScrollDelegate', '$compile',
-    function ($document, $timeout, $ionicScrollDelegate, $compile) {
+.directive('imageLazySrc', ['$document', '$timeout', '$animate', '$ionicScrollDelegate', '$compile',
+    function ($document, $timeout, $animate, $ionicScrollDelegate, $compile) {
         return {
             restrict: 'A',
             scope: {
                 lazyScrollResize: "@lazyScrollResize",
                 imageLazyBackgroundImage: "@imageLazyBackgroundImage",
-                imageLazySrc: "@"
+                imageLazySrc: "@",
+                imageLazyLoadedClass: "@"
             },
             link: function ($scope, $element, $attributes) {
                 if (!$attributes.imageLazyDistanceFromBottomToLoad) {
@@ -92,6 +93,11 @@ angular.module('ionicLazyLoad')
                             $ionicScrollDelegate.resize();
                         }
                         $element.unbind("load");
+
+                        if ($scope.imageLazyLoadedClass) {
+                            $element.addClass($scope.imageLazyLoadedClass);
+                        }
+
                     });
 
                     if ($scope.imageLazyBackgroundImage == "true") {
@@ -104,6 +110,15 @@ angular.module('ionicLazyLoad')
                             if ($scope.lazyScrollResize == "true") {
                                 //Call the resize to recalculate the size of the screen
                                 $ionicScrollDelegate.resize();
+                            }
+                            if ($scope.imageLazyLoadedClass) {
+                                //$element.addClass($scope.imageLazyLoadedClass);
+                                $scope.$apply(function () {
+                                    $animate.addClass($element, $scope.imageLazyLoadedClass).then(function () {
+                                        $animate.removeClass($element, $scope.imageLazyLoadedClass);
+                                    });
+                                });
+                                
                             }
                         };
                         bgImg.src = $attributes.imageLazySrc;
