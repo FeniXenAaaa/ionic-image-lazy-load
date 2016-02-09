@@ -112,13 +112,7 @@ angular.module('ionicLazyLoad')
                                 $ionicScrollDelegate.resize();
                             }
                             if ($scope.imageLazyLoadedClass) {
-                                //$element.addClass($scope.imageLazyLoadedClass);
-                                $scope.$apply(function () {
-                                    $animate.addClass($element, $scope.imageLazyLoadedClass).then(function () {
-                                        $animate.removeClass($element, $scope.imageLazyLoadedClass);
-                                    });
-                                });
-                                
+                                $element.addClass($scope.imageLazyLoadedClass);
                             }
                         };
                         bgImg.src = $attributes.imageLazySrc;
