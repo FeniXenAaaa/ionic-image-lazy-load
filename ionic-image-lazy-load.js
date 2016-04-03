@@ -11,21 +11,45 @@ angular.module('ionicLazyLoad', []);
 angular.module('ionicLazyLoad')
 
 .directive('lazyScroll', ['$rootScope',
-    function($rootScope) {
+    function ($rootScope) {
         return {
             restrict: 'A',
-            link: function ($scope, $element) {
-                var origEvent = $scope.$onScroll;
+            link: function ($scope, $element, $attributes) {
+                var origEvent = $scope.$onScroll,
+                    showInBatches = $attributes.showInBatches,
+                    pendingToShow = [],
+                    imagesToLoad = 0,
+                    imagesLoaded = 0;
                 $scope.$onScroll = function () {
                     $rootScope.$broadcast('lazyScrollEvent');
 
-                    if(typeof origEvent === 'function'){
-                      origEvent();
+                    if (typeof origEvent === 'function') {
+                        origEvent();
                     }
                 };
+                $scope.$on('imageLoad.start', function (event, $element) {
+                    imagesToLoad++;
+                    if (showInBatches) {
+                        pendingToShow.push($element);
+                    }
+                });
+                $scope.$on('imageLoad.end', function (event, $element) {
+                    imagesLoaded++;
+
+                    if (!showInBatches) {
+                        $element[0].style.visibility = '';
+                    } else {
+                        if (imagesLoaded === imagesToLoad) {
+                            while (pendingToShow.length) {
+                                pendingToShow.pop()[0].style.visibility = '';
+                            }
+                        }
+                    }
+                });
             }
         };
-}])
+    }
+])
 
 .directive('imageLazySrc', ['$document', '$timeout', '$animate', '$ionicScrollDelegate', '$compile',
     function ($document, $timeout, $animate, $ionicScrollDelegate, $compile) {
@@ -38,6 +62,9 @@ angular.module('ionicLazyLoad')
                 imageLazyLoadedClass: "@"
             },
             link: function ($scope, $element, $attributes) {
+                // hide the element to show it after the image is fully loaded
+                $element[0].style.visibility = 'hidden';
+
                 if (!$attributes.imageLazyDistanceFromBottomToLoad) {
                     $attributes.imageLazyDistanceFromBottomToLoad = 0;
                 }
@@ -52,7 +79,7 @@ angular.module('ionicLazyLoad')
                 }
 
                 $scope.$watch('imageLazySrc', function (oldV, newV) {
-                    if(loader)
+                    if (loader)
                         loader.remove();
                     if ($attributes.imageLazyLoader) {
                         loader = $compile('<div class="image-loader-container"><ion-spinner class="image-loader" icon="' + $attributes.imageLazyLoader + '"></ion-spinner></div>')($scope);
@@ -60,12 +87,11 @@ angular.module('ionicLazyLoad')
                     }
                     var deregistration = $scope.$on('lazyScrollEvent', function () {
                         //    console.log('scroll');
-                            if (isInView()) {
-                                loadImage();
-                                deregistration();
-                            }
+                        if (isInView()) {
+                            loadImage();
+                            deregistration();
                         }
-                    );
+                    });
                     $timeout(function () {
                         if (isInView()) {
                             loadImage();
@@ -73,14 +99,6 @@ angular.module('ionicLazyLoad')
                         }
                     }, 500);
                 });
-                var deregistration = $scope.$on('lazyScrollEvent', function () {
-                       // console.log('scroll');
-                        if (isInView()) {
-                            loadImage();
-                            deregistration();
-                        }
-                    }
-                );
 
                 function loadImage() {
                     //Bind "load" event
@@ -98,6 +116,7 @@ angular.module('ionicLazyLoad')
                             $element.addClass($scope.imageLazyLoadedClass);
                         }
 
+                        $scope.$emit("imageLoad.end", $element);
                     });
 
                     if ($scope.imageLazyBackgroundImage == "true") {
@@ -106,6 +125,7 @@ angular.module('ionicLazyLoad')
                             if ($attributes.imageLazyLoader) {
                                 loader.remove();
                             }
+
                             $element[0].style.backgroundImage = 'url(' + $attributes.imageLazySrc + ')'; // set style attribute on element (it will load image)
                             if ($scope.lazyScrollResize == "true") {
                                 //Call the resize to recalculate the size of the screen
@@ -114,19 +134,22 @@ angular.module('ionicLazyLoad')
                             if ($scope.imageLazyLoadedClass) {
                                 $element.addClass($scope.imageLazyLoadedClass);
                             }
+
+                            $scope.$emit("imageLoad.end", $element);
                         };
                         bgImg.src = $attributes.imageLazySrc;
                     } else {
                         $element[0].src = $attributes.imageLazySrc; // set src attribute on element (it will load image)
                     }
+
+                    $scope.$emit("imageLoad.start", $element);
                 }
 
                 function isInView() {
                     var clientHeight = $document[0].documentElement.clientHeight;
                     var clientWidth = $document[0].documentElement.clientWidth;
                     var imageRect = $element[0].getBoundingClientRect();
-                    return (imageRect.top >= 0 && imageRect.top <= clientHeight + parseInt($attributes.imageLazyDistanceFromBottomToLoad))
-                        && (imageRect.left >= 0 && imageRect.left <= clientWidth + parseInt($attributes.imageLazyDistanceFromRightToLoad));
+                    return (imageRect.top >= 0 && imageRect.top <= clientHeight + parseInt($attributes.imageLazyDistanceFromBottomToLoad)) && (imageRect.left >= 0 && imageRect.left <= clientWidth + parseInt($attributes.imageLazyDistanceFromRightToLoad));
                 }
 
                 // bind listener
@@ -135,16 +158,9 @@ angular.module('ionicLazyLoad')
                 // unbind event listeners if element was destroyed
                 // it happens when you change view, etc
                 $element.on('$destroy', function () {
-                    deregistration();
+                    //deregistration();
                 });
-
-                // explicitly call scroll listener (because, some images are in viewport already and we haven't scrolled yet)
-                $timeout(function () {
-                    if (isInView()) {
-                        loadImage();
-                        deregistration();
-                    }
-                }, 500);
             }
         };
-    }]);
+    }
+]);
