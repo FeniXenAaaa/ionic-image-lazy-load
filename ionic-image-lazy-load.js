@@ -32,14 +32,18 @@ angular.module('ionicLazyLoad')
                     if (showInBatches) {
                         pendingToShow.push($element);
                     }
+                    console.log('images to load: ' + imagesToLoad);
                 });
                 $scope.$on('imageLoad.end', function (event, $element) {
                     imagesLoaded++;
+                    console.log('images loaded: ' + imagesLoaded);
 
                     if (!showInBatches) {
                         $element[0].style.visibility = '';
                     } else {
                         if (imagesLoaded === imagesToLoad) {
+                            console.log('All images loaded');
+
                             while (pendingToShow.length) {
                                 pendingToShow.pop()[0].style.visibility = '';
                             }
@@ -81,23 +85,26 @@ angular.module('ionicLazyLoad')
                 $scope.$watch('imageLazySrc', function (oldV, newV) {
                     if (loader)
                         loader.remove();
-                    if ($attributes.imageLazyLoader) {
-                        loader = $compile('<div class="image-loader-container"><ion-spinner class="image-loader" icon="' + $attributes.imageLazyLoader + '"></ion-spinner></div>')($scope);
-                        $element.after(loader);
+
+                    if (newV) {
+                        if ($attributes.imageLazyLoader) {
+                            loader = $compile('<div class="image-loader-container"><ion-spinner class="image-loader" icon="' + $attributes.imageLazyLoader + '"></ion-spinner></div>')($scope);
+                            $element.after(loader);
+                        }
+                        var deregistration = $scope.$on('lazyScrollEvent', function () {
+                            //    console.log('scroll');
+                            if (isInView()) {
+                                loadImage();
+                                deregistration();
+                            }
+                        });
+                        $timeout(function () {
+                            if (isInView()) {
+                                loadImage();
+                                deregistration();
+                            }
+                        }, 500);
                     }
-                    var deregistration = $scope.$on('lazyScrollEvent', function () {
-                        //    console.log('scroll');
-                        if (isInView()) {
-                            loadImage();
-                            deregistration();
-                        }
-                    });
-                    $timeout(function () {
-                        if (isInView()) {
-                            loadImage();
-                            deregistration();
-                        }
-                    }, 500);
                 });
 
                 function loadImage() {
@@ -135,6 +142,12 @@ angular.module('ionicLazyLoad')
                                 $element.addClass($scope.imageLazyLoadedClass);
                             }
 
+                            $scope.$emit("imageLoad.end", $element);
+                        };
+                        bgImg.onError = function () {
+                            if ($attributes.imageLazyLoader) {
+                                loader.remove();
+                            }
                             $scope.$emit("imageLoad.end", $element);
                         };
                         bgImg.src = $attributes.imageLazySrc;
