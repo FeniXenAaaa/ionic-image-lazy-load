@@ -18,8 +18,9 @@ angular.module('ionicLazyLoad')
                 var origEvent = $scope.$onScroll,
                     showInBatches = $attributes.showInBatches,
                     pendingToShow = [],
-                    imagesToLoad = 0,
-                    imagesLoaded = 0;
+                    processed = [],
+                    imagesToLoad = 0;
+
                 $scope.$onScroll = function () {
                     $rootScope.$broadcast('lazyScrollEvent');
 
@@ -27,29 +28,50 @@ angular.module('ionicLazyLoad')
                         origEvent();
                     }
                 };
-                $scope.$on('imageLoad.start', function (event, $element) {
+                $scope.$on("imageLoad.start", function (event, $element) {
                     imagesToLoad++;
                     if (showInBatches) {
                         pendingToShow.push($element);
                     }
-                    console.log('images to load: ' + imagesToLoad);
-                });
-                $scope.$on('imageLoad.end', function (event, $element) {
-                    imagesLoaded++;
-                    console.log('images loaded: ' + imagesLoaded);
-
-                    if (!showInBatches) {
-                        $element[0].style.visibility = '';
-                    } else {
-                        if (imagesLoaded === imagesToLoad) {
-                            console.log('All images loaded');
-
-                            while (pendingToShow.length) {
-                                pendingToShow.pop()[0].style.visibility = '';
+                    $element.on("$destroy", function (event) {
+                        var index;
+                        if (showInBatches) {
+                            // images was NOT processed
+                            if (processed.indexOf($element) === -1) {
+                                index = pendingToShow.indexOf($element);
+                                if (index !== -1) {
+                                    pendingToShow.splice(pendingToShow.indexOf($element), 1);
+                                    imagesToLoad--;
+                                    checkBatch();
+                                }
                             }
                         }
-                    }
+                    });
                 });
+
+                $scope.$on("imageLoad.failed", onImageLoadComplete);
+                $scope.$on("imageLoad.end", onImageLoadComplete);
+
+                function onImageLoadComplete(event, $element) {
+                    imagesToLoad--;
+
+                    if (showInBatches) {
+                        processed.push($element);
+                        checkBatch();
+                    } else {
+                        $element[0].style.visibility = "";
+                    }
+                }
+
+                function checkBatch() {
+                    if (imagesToLoad === 0) {
+                        while (pendingToShow.length) {
+                            pendingToShow.pop()[0].style.visibility = "";
+                        }
+                        processed.length = 0;
+                    }
+
+                }
             }
         };
     }
@@ -66,8 +88,10 @@ angular.module('ionicLazyLoad')
                 imageLazyLoadedClass: "@"
             },
             link: function ($scope, $element, $attributes) {
+                var hasFinishedLoading = false;
+
                 // hide the element to show it after the image is fully loaded
-                $element[0].style.visibility = 'hidden';
+                $element[0].style.visibility = "hidden";
 
                 if (!$attributes.imageLazyDistanceFromBottomToLoad) {
                     $attributes.imageLazyDistanceFromBottomToLoad = 0;
@@ -92,7 +116,6 @@ angular.module('ionicLazyLoad')
                             $element.after(loader);
                         }
                         var deregistration = $scope.$on('lazyScrollEvent', function () {
-                            //    console.log('scroll');
                             if (isInView()) {
                                 loadImage();
                                 deregistration();
@@ -123,6 +146,7 @@ angular.module('ionicLazyLoad')
                             $element.addClass($scope.imageLazyLoadedClass);
                         }
 
+                        hasFinishedLoading = true;
                         $scope.$emit("imageLoad.end", $element);
                     });
 
@@ -142,13 +166,15 @@ angular.module('ionicLazyLoad')
                                 $element.addClass($scope.imageLazyLoadedClass);
                             }
 
+                            hasFinishedLoading = true;
                             $scope.$emit("imageLoad.end", $element);
                         };
                         bgImg.onError = function () {
                             if ($attributes.imageLazyLoader) {
                                 loader.remove();
                             }
-                            $scope.$emit("imageLoad.end", $element);
+                            hasFinishedLoading = true;
+                            $scope.$emit("imageLoad.failed", $element);
                         };
                         bgImg.src = $attributes.imageLazySrc;
                     } else {
@@ -171,7 +197,7 @@ angular.module('ionicLazyLoad')
                 // unbind event listeners if element was destroyed
                 // it happens when you change view, etc
                 $element.on('$destroy', function () {
-                    //deregistration();
+                    //deregistration();                    
                 });
             }
         };
