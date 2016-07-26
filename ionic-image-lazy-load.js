@@ -106,7 +106,7 @@ angular.module('ionicLazyLoad')
                     $element.after(loader);
                 }
 
-                $scope.$watch('imageLazySrc', function (oldV, newV) {
+                $scope.$watch('imageLazySrc', function (newV, oldV) {
                     if (loader)
                         loader.remove();
 
